@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shenzhen Sorting Facility — Operator's Manual</title>
+<style>
+  :root {
+    --bg: #edefe8;
+    --surface: #f8f9f4;
+    --surface-2: #ffffff;
+    --ink: #1c2521;
+    --ink-2: #54615a;
+    --ink-3: #7d897f;
+    --line: #cdd2c6;
+    --line-strong: #a9b0a0;
+    --accent: #1f6f64;
+    --accent-ink: #0f3d36;
+    --accent-bg: #dbe9e4;
+    --warn: #a5621f;
+    --warn-ink: #5c360f;
+    --warn-bg: #f1e3d1;
+    --danger: #a3392f;
+    --danger-ink: #5c1f19;
+    --danger-bg: #f2ded9;
+    --stamp: #8f9285;
+    --font-display: Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif;
+    --font-body: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    --font-mono: Consolas, "Cascadia Code", "Courier New", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181a;
+      --surface: #1b201f;
+      --surface-2: #202523;
+      --ink: #e7ebe4;
+      --ink-2: #a7b0a5;
+      --ink-3: #7c847a;
+      --line: #333a35;
+      --line-strong: #454e47;
+      --accent: #5cb3a4;
+      --accent-ink: #bfe7de;
+      --accent-bg: #1c3b36;
+      --warn: #dc9c56;
+      --warn-ink: #f5dcb8;
+      --warn-bg: #3d2e1a;
+      --danger: #e08276;
+      --danger-ink: #f6d3cd;
+      --danger-bg: #3d211d;
+      --stamp: #5c6259;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181a; --surface: #1b201f; --surface-2: #202523;
+    --ink: #e7ebe4; --ink-2: #a7b0a5; --ink-3: #7c847a;
+    --line: #333a35; --line-strong: #454e47;
+    --accent: #5cb3a4; --accent-ink: #bfe7de; --accent-bg: #1c3b36;
+    --warn: #dc9c56; --warn-ink: #f5dcb8; --warn-bg: #3d2e1a;
+    --danger: #e08276; --danger-ink: #f6d3cd; --danger-bg: #3d211d;
+    --stamp: #5c6259;
+  }
+  :root[data-theme="light"] {
+    --bg: #edefe8; --surface: #f8f9f4; --surface-2: #ffffff;
+    --ink: #1c2521; --ink-2: #54615a; --ink-3: #7d897f;
+    --line: #cdd2c6; --line-strong: #a9b0a0;
+    --accent: #1f6f64; --accent-ink: #0f3d36; --accent-bg: #dbe9e4;
+    --warn: #a5621f; --warn-ink: #5c360f; --warn-bg: #f1e3d1;
+    --danger: #a3392f; --danger-ink: #5c1f19; --danger-bg: #f2ded9;
+    --stamp: #8f9285;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+  .manual { max-width: 900px; margin: 0 auto; padding: 0 1.25rem 4rem; }
+
+  .coverblock {
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    padding: 1.75rem 2rem;
+    margin: 2rem 0 2.5rem;
+    position: relative;
+  }
+  .coverblock::before {
+    content: "";
+    position: absolute; inset: 6px;
+    border: 1px dashed var(--line);
+    pointer-events: none;
+  }
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 0.5rem;
+  }
+  .coverblock h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 34px;
+    letter-spacing: 0.01em;
+    margin: 0 0 0.35rem;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+  .coverblock .subtitle {
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 1.1rem;
+  }
+  .manifest-row {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.75rem;
+    font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2);
+    border-top: 1px solid var(--line); padding-top: 0.85rem;
+  }
+  .manifest-row span b { color: var(--ink); font-weight: 700; }
+
+  nav.toc {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 0;
+    margin: 0 0 2.75rem;
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  nav.toc a {
+    font-family: var(--font-display);
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    text-decoration: none;
+    padding: 0.6rem 0.9rem;
+    border-right: 1px solid var(--line);
+  }
+  nav.toc a:last-child { border-right: none; }
+  nav.toc a:hover { color: var(--accent); }
+
+  section { margin: 0 0 3rem; }
+  section h2 {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 0.75rem;
+    margin: 0 0 1.35rem;
+  }
+  section h2::after {
+    content: ""; flex: 1; height: 1px; background: var(--line-strong);
+  }
+  section h3 {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 700;
+    color: var(--ink);
+    margin: 1.8rem 0 0.6rem;
+  }
+  p { line-height: 1.68; max-width: 62ch; margin: 0 0 1rem; color: var(--ink); }
+  p.lede { font-size: 17.5px; max-width: 58ch; }
+  .ink2 { color: var(--ink-2); }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  ol.steps li {
+    counter-increment: step;
+    display: grid; grid-template-columns: 2.25rem 1fr; gap: 0.9rem;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--line);
+  }
+  ol.steps li:first-child { border-top: none; }
+  ol.steps li::before {
+    content: counter(step);
+    font-family: var(--font-mono); font-weight: 700; font-size: 14px;
+    color: var(--accent-ink); background: var(--accent-bg);
+    width: 2rem; height: 2rem; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps li p { margin: 0; max-width: 56ch; }
+  ol.steps li .step-title { font-weight: 700; color: var(--ink); display: block; margin-bottom: 0.15rem; }
+
+  table.ref { width: 100%; border-collapse: collapse; margin: 0 0 1rem; }
+  table.ref th {
+    font-family: var(--font-display); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3); text-align: left;
+    padding: 0 0.75rem 0.5rem; border-bottom: 1px solid var(--line-strong);
+  }
+  table.ref td {
+    padding: 0.75rem; border-bottom: 1px solid var(--line);
+    vertical-align: top; font-size: 14.5px;
+  }
+  table.ref tr:last-child td { border-bottom: none; }
+  table.ref td.term { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; color: var(--ink); }
+  .tablewrap { overflow-x: auto; }
+
+  dl.glossary { margin: 0; }
+  dl.glossary > div {
+    display: grid; grid-template-columns: minmax(140px, 200px) 1fr;
+    gap: 1.25rem; padding: 1rem 0; border-top: 1px solid var(--line);
+  }
+  dl.glossary > div:first-child { border-top: none; }
+  dl.glossary dt {
+    font-family: var(--font-mono); font-weight: 700; font-size: 14.5px;
+    color: var(--accent-ink); background: var(--accent-bg);
+    padding: 0.25rem 0.5rem; border-radius: 3px; height: fit-content;
+  }
+  dl.glossary dd { margin: 0; font-size: 14.5px; line-height: 1.65; max-width: 52ch; }
+
+  .stamp {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-display); font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.28rem 0.6rem; border-radius: 3px; border: 1.5px solid currentColor;
+  }
+  .stamp.ok { color: var(--accent-ink); background: var(--accent-bg); }
+  .stamp.warn { color: var(--warn-ink); background: var(--warn-bg); }
+  .stamp.bad { color: var(--danger-ink); background: var(--danger-bg); }
+
+  .scenario {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    padding: 1.1rem 1.3rem; margin: 0 0 1rem;
+  }
+  .scenario .q {
+    font-family: var(--font-display); font-weight: 700; font-size: 14.5px;
+    color: var(--ink); margin: 0 0 0.5rem;
+  }
+  .scenario p { margin: 0; font-size: 14.5px; max-width: 58ch; }
+  .scenario p + p { margin-top: 0.5rem; }
+
+  .callout {
+    background: var(--warn-bg); border: 1px solid var(--warn);
+    padding: 1.1rem 1.3rem; margin: 1.5rem 0;
+  }
+  .callout .eyebrow { color: var(--warn-ink); margin-bottom: 0.4rem; }
+  .callout p { color: var(--warn-ink); margin: 0; max-width: 58ch; }
+
+  code.k { font-family: var(--font-mono); background: var(--surface-2); border: 1px solid var(--line); padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.92em; }
+
+  footer.colophon {
+    margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px dashed var(--line-strong);
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  }
+
+  @media (max-width: 640px) {
+    dl.glossary > div { grid-template-columns: 1fr; }
+    .coverblock h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="manual">
+
+  <div class="coverblock">
+    <p class="eyebrow">Operator's manual — field reference</p>
+    <h1>Shenzhen Sorting Facility</h1>
+    <p class="subtitle">What everything means, and what to do when</p>
+    <div class="manifest-row">
+      <span>Revision: <b>v1.0</b></span>
+      <span>Facility: <b>Desktop\Shenzhen Sorting Facility</b></span>
+      <span>Warehouse: <b>S:\Warehouse</b></span>
+      <span>Console: <b>Desktop\Receipt Center Console</b></span>
+    </div>
+  </div>
+
+  <nav class="toc">
+    <a href="#start">Quick start</a>
+    <a href="#panel">Control panel</a>
+    <a href="#glossary">Glossary</a>
+    <a href="#scenarios">When do I use what</a>
+    <a href="#attention">If something needs attention</a>
+    <a href="#trouble">Troubleshooting</a>
+  </nav>
+
+  <section id="intro">
+    <h2>What this is</h2>
+    <p class="lede">A small program that watches one folder on your Desktop, sorts whatever you drop into it by camera and date, and keeps a permanent, checkable record that nothing got lost or corrupted along the way.</p>
+    <p class="ink2">It never deletes your originals. A copy goes to the archive, gets checked byte-for-byte against the original, and only then does the original folder get moved aside — never removed. If anything's uncertain at any step, it stops and tells you, rather than guessing.</p>
+  </section>
+
+  <section id="start">
+    <h2>Quick start</h2>
+    <ol class="steps">
+      <li>
+        <p><span class="step-title">Drop your files in</span>
+        Put a folder of photos/videos (or loose files) straight into <code class="k">Shenzhen Sorting Facility</code> on your Desktop. Any arrangement is fine — one folder, several, or files with nothing around them.</p>
+      </li>
+      <li>
+        <p><span class="step-title">Open the control panel</span>
+        Double-click your <code class="k">Shenzhen Sorting Control</code> shortcut.</p>
+      </li>
+      <li>
+        <p><span class="step-title">Press Manual Onboarding</span>
+        You get a 10-second hold first — the button turns into <b>Stop</b> during that window in case you meant to press something else. Let it run out, and sorting begins for real.</p>
+      </li>
+      <li>
+        <p><span class="step-title">Check the receipt</span>
+        When it's done, open <code class="k">Receipt Center Console</code> and read the top of the newest receipt. It tells you straight away whether everything verified, or whether something needs your attention.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="panel">
+    <h2>The control panel, piece by piece</h2>
+
+    <h3>Status line</h3>
+    <div class="tablewrap">
+    <table class="ref">
+      <tr><th>You see</th><th>It means</th></tr>
+      <tr><td class="term">Running</td><td>Nothing is happening right now, and nothing's wrong. Waiting for you.</td></tr>
+      <tr><td class="term">Transferring</td><td>A real sort is in progress. Don't close the window, disconnect the Warehouse drive, unplug the camera/card, or let the computer sleep until it finishes.</td></tr>
+      <tr><td class="term">Paused &mdash; safety condition</td><td>It stopped itself on purpose (for example, the Warehouse drive is low on space or disconnected). It will not resume by itself — press Start/Resume once the cause is fixed.</td></tr>
+      <tr><td class="term">Stopped</td><td>You pressed Safe Stop. No new sorting will start until you press Start/Resume.</td></tr>
+    </table>
+    </div>
+
+    <h3>Buttons and controls</h3>
+    <div class="tablewrap">
+    <table class="ref">
+      <tr><th>Control</th><th>What it does</th></tr>
+      <tr><td class="term">Preview only</td><td>Tick this before pressing Manual Onboarding to see exactly what would happen — nothing is copied, moved, or changed.</td></tr>
+      <tr><td class="term">Manual Onboarding</td><td>Sorts whatever's sitting in the facility right now. Ten-second hold first (click again to cancel). Grayed out while a transfer is already running.</td></tr>
+      <tr><td class="term">Start / Resume</td><td>Clears a Safe Stop, or lets you retry after a safety pause has been fixed.</td></tr>
+      <tr><td class="term">Safe Stop</td><td>Stops new sorting from starting. Always clickable, even mid-transfer — it just means nothing new begins after the current one finishes.</td></tr>
+      <tr><td class="term">Open Sorting Facility / Open Receipt Console</td><td>Shortcuts to the two folders you'll actually look at day to day.</td></tr>
+      <tr><td class="term">Timer settings</td><td>How long a file has to sit untouched before it's treated as finished arriving (default: 5 minutes per file, 30 minutes for the whole folder). Doesn't apply to Manual Onboarding, which only needs a couple of seconds since you're right there confirming it yourself.</td></tr>
+      <tr><td class="term">Deep verify</td><td>Tick this before a Compliance Check to re-read every archived file's actual content, not just check it's present — catches quiet corruption, at the cost of taking longer.</td></tr>
+      <tr><td class="term">Compliance Check / Delivery Check</td><td>See the glossary below — each writes its own receipt.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section id="glossary">
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <div>
+        <dt>Shenzhen Sorting Facility</dt>
+        <dd>The Desktop folder you drop things into. Nothing else needs to happen here — the program watches it.</dd>
+      </div>
+      <div>
+        <dt>Dump folder</dt>
+        <dd>Any one folder you drop in — a single batch, like "iPhone July" or "Fuji Weekend". Each one gets sorted and accounted for on its own.</dd>
+      </div>
+      <div>
+        <dt>Warehouse</dt>
+        <dd>The permanent archive on the S: drive. Organized by camera first, then Year → Month.</dd>
+      </div>
+      <div>
+        <dt>Shipped</dt>
+        <dd>A folder inside the Sorting Facility. Once every file in a dump folder is safely copied and verified, the original folder moves here — not deleted, just moved aside, so you can tell at a glance what's fully done.</dd>
+      </div>
+      <div>
+        <dt>Receipt</dt>
+        <dd>A record of one sort — what came in, where it went, whether it all checked out. Written every single time, success or not.</dd>
+      </div>
+      <div>
+        <dt>Receipt Center Console</dt>
+        <dd>The Desktop folder where every receipt lands. The first place to check after any sort.</dd>
+      </div>
+      <div>
+        <dt>Glove Box</dt>
+        <dd>A folder inside the Center Console. Once you've personally read a receipt, you can drag it in here as your own "seen it" pile. Purely for you — it has no effect on anything the program tracks.</dd>
+      </div>
+      <div>
+        <dt>Manual Onboarding</dt>
+        <dd>Sort right now, by hand, instead of waiting on the usual timers — because you're right there confirming the files are actually done arriving.</dd>
+      </div>
+      <div>
+        <dt>Compliance Check</dt>
+        <dd>Confirms every file the Warehouse is supposed to have is still there. If you've reorganized things into your own folders inside the Warehouse, that's fine — it looks for content anywhere inside, not just where it started. Compares against the last time you ran it, so something you deliberately removed only gets flagged once.</dd>
+      </div>
+      <div>
+        <dt>Delivery Check</dt>
+        <dd>Confirms everything sitting in Shipped is safely backed up in the Warehouse — the check to run before you delete or clean out Shipped.</dd>
+      </div>
+      <div>
+        <dt>Clear / Not clear</dt>
+        <dd>The verdict at the top of a Compliance or Delivery Check receipt. Clear means go ahead. Not clear names exactly what wasn't confirmed, and why.</dd>
+      </div>
+      <div>
+        <dt>Verified and sorted</dt>
+        <dd>The count on a sorting receipt — X of Y files copied <em>and</em> independently confirmed byte-for-byte, not just "copy said it worked."</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section id="scenarios">
+    <h2>When do I use what</h2>
+
+    <div class="scenario">
+      <p class="q">I just got back from a trip with a full memory card.</p>
+      <p>Drop the whole card's folder straight into the Sorting Facility. Open the panel, press <b>Manual Onboarding</b>, let the ten-second hold run out. Check the receipt when it's done.</p>
+    </div>
+
+    <div class="scenario">
+      <p class="q">I want to delete or clean out what's sitting in Shipped.</p>
+      <p>Run <b>Delivery Check</b> first, every time. <span class="stamp ok">Clear</span> means every original in there is confirmed backed up — safe to remove. Don't skip this step just because it looks obviously fine.</p>
+    </div>
+
+    <div class="scenario">
+      <p class="q">Something in the Warehouse looks off, or I just want peace of mind.</p>
+      <p>Run <b>Compliance Check</b>. Tick <b>Deep verify</b> if you want it to re-read actual file content, not just confirm things are present — worth doing occasionally, especially before anything that would be hard to undo.</p>
+    </div>
+
+    <div class="scenario">
+      <p class="q">I reorganized photos into my own folder inside the Warehouse.</p>
+      <p>Nothing to do. Compliance Check already looks for content anywhere in the Warehouse before calling anything missing — your own reorganizing was designed in from the start, not an afterthought.</p>
+    </div>
+
+    <div class="scenario">
+      <p class="q">The countdown says "ready in 04:23" and I don't want to wait.</p>
+      <p>Press <b>Manual Onboarding</b> instead — it only needs a couple of seconds, not the full timer, because you're right there vouching the transfer is actually finished.</p>
+    </div>
+  </section>
+
+  <section id="attention">
+    <h2>If something needs attention</h2>
+    <p>A receipt that isn't <span class="stamp ok">Clear</span> or says <span class="stamp bad">Needs attention</span> is not an emergency. Nothing gets deleted automatically, ever — anywhere in this system.</p>
+    <p class="ink2">Read the receipt's detail section — it names the exact file, which folder it was expected in, and whether the original is still sitting safely in <code class="k">Shipped</code>. If it's still there, nothing was actually lost; it just needs re-sorting.</p>
+    <div class="callout">
+      <p class="eyebrow">Rule of thumb</p>
+      <p>When in doubt, don't delete anything and don't press Delivery Check's "go ahead" as a formality — read what it actually found first.</p>
+    </div>
+  </section>
+
+  <section id="trouble">
+    <h2>Troubleshooting</h2>
+    <div class="tablewrap">
+    <table class="ref">
+      <tr><th>What you're seeing</th><th>What's going on</th></tr>
+      <tr><td>Manual Onboarding is grayed out</td><td>A transfer or check is already running. Wait for it to finish — Safe Stop is the only button that stays live.</td></tr>
+      <tr><td>Countdown isn't moving</td><td>It's deliberately paused while a transfer or check is active — nothing wrong, it resumes once that finishes.</td></tr>
+      <tr><td>"Nothing waiting" but I just dropped files in</td><td>Give it a moment — files need to sit untouched briefly before they're treated as finished arriving. Manual Onboarding doesn't wait on this.</td></tr>
+      <tr><td>Paused &mdash; safety condition, won't go away</td><td>Fix the underlying cause first (usually free space or a disconnected drive), then press Start/Resume — it re-checks everything before continuing.</td></tr>
+      <tr><td>A file landed in the wrong-seeming category</td><td>Not data loss — everything is still hash-verified and accounted for. Move it within the Warehouse if you'd prefer it elsewhere; Compliance Check will find it there next time.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <span>Shenzhen Sorting Facility &mdash; Operator's Manual</span>
+    <span>Preservation over convenience, always</span>
+  </footer>
+
+</div>
+</body>
+</html>
