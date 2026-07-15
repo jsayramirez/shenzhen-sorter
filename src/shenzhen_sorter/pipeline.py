@@ -16,6 +16,7 @@ and detect collisions; it must not copy/commit/create files).
 import errno
 import os
 import shutil
+import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -456,6 +457,14 @@ def run_session(dry_run: bool = None, manual: bool = False) -> SessionResult:
             print(f"Receipt written: {console_path} and {archive_path}")
 
         return result
+    except sqlite3.DatabaseError as e:
+        # "Transaction database unavailable or unsafe to trust" is an
+        # explicit hard-pause trigger (spec 12.3), not something that
+        # should surface as a raw crash/traceback - found by an adversarial
+        # test that corrupted the ledger file mid-byte and got an unhandled
+        # DatabaseError instead of a clean, actionable pause.
+        preflight.enter_hard_pause("ledger_unavailable", {"error": str(e)})
+        return SessionResult(receipt_id="", dump_folders=[], paused_reason="ledger_unavailable")
     finally:
         lock.release()
 

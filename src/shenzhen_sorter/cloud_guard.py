@@ -60,12 +60,26 @@ def desktop_is_cloud_redirected(desktop_root: Path) -> bool:
     return desktop_resolved.startswith(onedrive_resolved)
 
 
+_GetFileAttributesW = ctypes.windll.kernel32.GetFileAttributesW
+_GetFileAttributesW.restype = ctypes.c_uint32  # DWORD - without this, ctypes
+# defaults to a signed c_int, so INVALID_FILE_ATTRIBUTES (0xFFFFFFFF) comes
+# back as -1 instead. -1 compared against 0xFFFFFFFF never matches, and
+# `-1 & CLOUD_PLACEHOLDER_MASK` is truthy (all bits set in two's complement) -
+# so a file that simply doesn't exist (or any other GetFileAttributesW
+# failure) was being misreported as "a cloud placeholder", found by an
+# adversarial test where the source vanished mid-run: it should have
+# surfaced as a plain missing-file error, not a cloud-placeholder claim.
+
+
 def file_is_cloud_placeholder(path: Path) -> bool:
     """True if the file's Windows attributes indicate it is a cloud
     placeholder (OneDrive Files-On-Demand or similar) rather than fully
-    resident local content."""
+    resident local content. False (not True) for a file that doesn't exist
+    or any other lookup failure - that's a different problem, reported
+    honestly as whatever it actually is (e.g. FileNotFoundError) by the
+    caller that tries to open it, not disguised as a cloud-sync issue."""
     try:
-        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+        attrs = _GetFileAttributesW(str(path))
     except Exception:
         return False
     if attrs == 0xFFFFFFFF:  # INVALID_FILE_ATTRIBUTES
