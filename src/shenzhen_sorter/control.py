@@ -20,7 +20,7 @@ import os
 import time
 
 from config import settings
-from . import ledger, preflight
+from . import folder_repair, ledger, preflight
 
 
 def is_safe_stopped() -> bool:
@@ -88,10 +88,21 @@ def cmd_open_receipt_console():
     os.startfile(str(settings.RECEIPT_CONSOLE_DIR))
 
 
+def cmd_repair_folders():
+    result = folder_repair.repair_folders()
+    if result.created:
+        print(f"Created: {', '.join(result.created)}")
+    if result.already_present:
+        print(f"Already present: {', '.join(result.already_present)}")
+    for msg in result.refused:
+        print(f"REFUSED: {msg}")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="shenzhen-control")
     parser.add_argument("action", choices=[
         "start", "safe-stop", "status", "open-sorting-facility", "open-receipt-console",
+        "repair-folders",
     ])
     args = parser.parse_args()
     {
@@ -100,6 +111,7 @@ def main():
         "status": cmd_status,
         "open-sorting-facility": cmd_open_sorting_facility,
         "open-receipt-console": cmd_open_receipt_console,
+        "repair-folders": cmd_repair_folders,
     }[args.action]()
 
 

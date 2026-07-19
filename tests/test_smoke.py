@@ -537,6 +537,55 @@ def main():
     result7c = pipeline.run_session(dry_run=True)
     check("clearing the hard pause allows the next session to proceed normally", result7c.paused_reason is None)
 
+    # --- Test 8: folder repair - low-stakes folders are always safe to
+    # recreate, but the Warehouse (archive root) refuses to auto-recreate
+    # once the ledger remembers prior archived content, since a missing
+    # archive root could mean real data loss or a moved/renamed drive
+    # rather than a fresh setup. This test must run after the earlier
+    # tests, since it relies on the ledger already having COMMITTED
+    # history by this point. ---
+    from shenzhen_sorter import folder_repair
+
+    shutil.rmtree(shipped)
+    shutil.rmtree(settings.GLOVE_BOX_DIR, ignore_errors=True)
+    repair1 = folder_repair.repair_folders()
+    check("repair: recreates a deleted low-stakes folder (Shipped)",
+          "Shipped" in repair1.created and shipped.exists())
+    check("repair: recreates Glove Box too", "Glove Box" in repair1.created)
+    check("repair: leaves an already-present folder alone (Shenzhen root)",
+          "Shenzhen Sorting Facility" in repair1.already_present)
+    check("repair: Warehouse already present, not touched",
+          "Warehouse" in repair1.already_present and not repair1.refused)
+
+    shutil.rmtree(archive)
+    repair2 = folder_repair.repair_folders()
+    check("repair: refuses to recreate a missing Warehouse when the ledger has history",
+          bool(repair2.refused) and "Warehouse" not in repair2.created)
+    check("repair: really did not create it", not archive.exists())
+
+    # The same guard applies to a real session's own preflight, not just
+    # the explicit Repair Folders action - a scheduled/manual run hitting
+    # a missing Warehouse must hard-pause, not quietly rebuild it.
+    guard_folder = shenzhen / "Warehouse Missing Test"
+    guard_folder.mkdir()
+    shutil.copy2(SAMPLE_SOURCE, guard_folder / "SHOULD_NOT_COMMIT.JPG")
+    result8 = pipeline.run_session(dry_run=False)
+    check("session preflight also refuses when the Warehouse is missing with history",
+          bool(result8.paused_reason) and "Warehouse" in result8.paused_reason)
+    check("session did not create the Warehouse itself either", not archive.exists())
+    paused8 = preflight.is_hard_paused()
+    check("archive_root_missing_with_history hard-pause persisted to disk",
+          paused8 is not None and paused8.get("reason") == "archive_root_missing_with_history")
+    preflight.clear_hard_pause()
+
+    # A genuinely fresh ledger (zero COMMITTED history) makes it safe to
+    # auto-create a missing Warehouse - this is the ordinary first-run case.
+    settings.LEDGER_DB_PATH = sandbox / "fresh_ledger.sqlite3"
+    ledger.init_db()
+    repair3 = folder_repair.repair_folders()
+    check("repair: safe to auto-create the Warehouse when the ledger has zero history",
+          "Warehouse" in repair3.created and archive.exists() and not repair3.refused)
+
     print(f"\n{len(_passed)} passed, {len(_failed)} failed")
     shutil.rmtree(sandbox, ignore_errors=True)
     sys.exit(1 if _failed else 0)

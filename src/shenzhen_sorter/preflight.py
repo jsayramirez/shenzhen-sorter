@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from config import settings
+from . import ledger
 
 
 class HardPaused(RuntimeError):
@@ -85,6 +86,33 @@ def destination_is_writable(destination_root: Path) -> bool:
         return False
 
 
+def archive_root_needs_manual_repair() -> int | None:
+    """Guards against silently recreating an empty Warehouse when the
+    ledger remembers prior archived content - the archive root going
+    missing could mean it was genuinely deleted, but it could just as
+    easily mean the drive is disconnected or the folder got renamed/moved,
+    and quietly `mkdir`-ing a fresh empty one in either case would mask
+    what might be catastrophic data loss instead of surfacing it.
+
+    Returns None if it's safe to auto-create (the archive root already
+    exists, or is missing but the ledger has zero COMMITTED files on
+    record - i.e. genuinely first-run setup). Otherwise returns the number
+    of previously COMMITTED files on record (or -1 if the ledger itself
+    couldn't even be read, which is its own reason not to guess)."""
+    if settings.ARCHIVE_ROOT.exists():
+        return None
+    try:
+        ledger.init_db()
+        with ledger.connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM transactions WHERE status = 'COMMITTED'"
+            ).fetchone()
+        count = row["n"] if row else 0
+    except Exception:
+        return -1
+    return count if count else None
+
+
 def enter_hard_pause(reason: str, details: dict) -> None:
     path = settings.HARD_PAUSE_STATE_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,6 +154,23 @@ def run_preflight(destination_root: Path, file_paths: list[Path]) -> PreflightRe
                                   reason=f"Destination drive {destination_drive} is unavailable")
         enter_hard_pause("destination_unavailable", {"drive": str(destination_drive)})
         return result
+
+    if destination_root == settings.ARCHIVE_ROOT:
+        history = archive_root_needs_manual_repair()
+        if history is not None:
+            detail = (f"{history} previously archived file(s) on record"
+                       if history >= 0 else "the ledger itself could not be read")
+            result = PreflightResult(
+                ok=False, required_bytes=0, available_bytes=0,
+                reason=(f"The Warehouse ({destination_root}) is missing, but {detail}. "
+                        "Won't recreate it automatically - use Repair Folders once you've "
+                        "confirmed it's really gone (not just a disconnected drive or a "
+                        "renamed/moved folder)."),
+            )
+            enter_hard_pause("archive_root_missing_with_history", {
+                "archive_root": str(destination_root), "committed_count": history,
+            })
+            return result
 
     if not destination_is_writable(destination_root):
         result = PreflightResult(ok=False, required_bytes=0, available_bytes=0,

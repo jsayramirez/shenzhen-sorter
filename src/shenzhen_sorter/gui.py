@@ -17,7 +17,7 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
 from config import settings
-from . import control, integrity, ledger, pipeline, preflight
+from . import control, folder_repair, integrity, ledger, pipeline, preflight
 
 REFRESH_MS = 3000     # how often we re-check real status/countdown against disk+ledger
 TICK_MS = 1000        # how often the countdown label re-renders between real refreshes
@@ -45,7 +45,7 @@ class ControlPanel(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Shenzhen Sorting Facility - Control")
-        self.geometry("580x700")
+        self.geometry("580x740")
         self.resizable(False, False)
 
         self._work_queue: "queue.Queue[tuple[str, object]]" = queue.Queue()
@@ -127,16 +127,20 @@ class ControlPanel(tk.Tk):
         tk.Button(button_frame, text="OPEN RECEIPT CONSOLE", width=22, command=self._on_open_console).grid(row=2, column=1, padx=4, pady=3)
         tk.Button(button_frame, text="TIMER SETTINGS", width=46, command=self._on_timer_settings).grid(row=3, column=0, columnspan=2, padx=4, pady=3)
 
+        self.repair_folders_button = tk.Button(button_frame, text="REPAIR FOLDERS", width=46,
+                                                command=self._on_repair_folders)
+        self.repair_folders_button.grid(row=4, column=0, columnspan=2, padx=4, pady=3)
+
         self.deep_verify_var = tk.BooleanVar(value=False)
         tk.Checkbutton(button_frame, text="Deep verify (re-hash content, catches corruption - slower)",
-                       variable=self.deep_verify_var).grid(row=4, column=0, columnspan=2, pady=(6, 0))
+                       variable=self.deep_verify_var).grid(row=5, column=0, columnspan=2, pady=(6, 0))
 
         self.compliance_check_button = tk.Button(button_frame, text="COMPLIANCE CHECK", width=22,
                                                   command=self._on_compliance_check)
-        self.compliance_check_button.grid(row=5, column=0, padx=4, pady=3)
+        self.compliance_check_button.grid(row=6, column=0, padx=4, pady=3)
         self.delivery_check_button = tk.Button(button_frame, text="DELIVERY CHECK", width=22,
                                                 command=self._on_delivery_check)
-        self.delivery_check_button.grid(row=5, column=1, padx=4, pady=3)
+        self.delivery_check_button.grid(row=6, column=1, padx=4, pady=3)
 
         tk.Label(self, text="Activity log", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(10, 0))
         self.log = scrolledtext.ScrolledText(self, height=14, width=68, state="disabled", font=("Consolas", 9))
@@ -385,6 +389,32 @@ class ControlPanel(tk.Tk):
     def _on_open_console(self):
         control.cmd_open_receipt_console()
 
+    def _on_repair_folders(self):
+        """Recreates the Shenzhen Sorting Facility / Receipt Center Console /
+        Warehouse folder structure if any of it was deleted, renamed, or
+        moved, so the system doesn't just silently stop working. The
+        Warehouse specifically is only ever recreated if the ledger has no
+        prior archived content on record - see folder_repair.repair_folders
+        and preflight.archive_root_needs_manual_repair for why."""
+        if self._busy:
+            self._log("A transfer or check is already running - please wait for it to finish.")
+            return
+        result = folder_repair.repair_folders()
+        lines = []
+        if result.created:
+            lines.append(f"Created: {', '.join(result.created)}")
+        if result.already_present:
+            lines.append(f"Already present: {', '.join(result.already_present)}")
+        for msg in result.refused:
+            lines.append(f"NOT recreated: {msg}")
+        summary = "\n".join(lines) if lines else "Nothing to do."
+        self._log("Repair Folders:\n  " + summary.replace("\n", "\n  "))
+        if result.refused:
+            messagebox.showwarning("Repair Folders", summary)
+        else:
+            messagebox.showinfo("Repair Folders", summary)
+        self._do_status_refresh()
+
     def _on_manual_button_press(self):
         """The button does double duty: first press starts a cancelable
         hold (an "oops" window - the button itself becomes STOP for the
@@ -442,6 +472,7 @@ class ControlPanel(tk.Tk):
         self.start_button.config(state=state)
         self.compliance_check_button.config(state=state)
         self.delivery_check_button.config(state=state)
+        self.repair_folders_button.config(state=state)
 
     def _run_session_worker(self, live: bool):
         try:

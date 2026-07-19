@@ -14,6 +14,13 @@ Entry point. Run from anywhere with:
     python S:\\shenzhen-sorter\\main.py safe-stop
     python S:\\shenzhen-sorter\\main.py open-sorting-facility
     python S:\\shenzhen-sorter\\main.py open-receipt-console
+    python S:\\shenzhen-sorter\\main.py repair-folders
+        - Recreates the Shenzhen Sorting Facility / Receipt Center Console /
+          Warehouse folder structure if any of it was deleted, renamed, or
+          moved. The Warehouse itself is only ever recreated automatically
+          if the ledger has no prior archived content on record - otherwise
+          this refuses and tells you why, rather than risk masking real
+          data loss or a disconnected/renamed drive.
 """
 
 import sys
@@ -69,6 +76,8 @@ def main():
         control.cmd_open_sorting_facility()
     elif action == "open-receipt-console":
         control.cmd_open_receipt_console()
+    elif action == "repair-folders":
+        control.cmd_repair_folders()
     else:
         print(__doc__)
 
