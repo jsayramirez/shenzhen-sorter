@@ -20,7 +20,7 @@ import shutil
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import font as tkfont, messagebox, scrolledtext
 
 from config import settings
 from . import browse, control, folder_repair, integrity, ledger, pipeline, preflight
@@ -111,6 +111,21 @@ class ControlPanel(tk.Tk):
         for label in self._wrap_labels:
             label.config(wraplength=wrap)
 
+    def _start_log_resize(self, event):
+        self._log_resize_start_y = event.y_root
+        self._log_resize_start_lines = int(self.log.cget("height"))
+
+    def _do_log_resize(self, event):
+        """Drag the grip below Activity Log to make it taller/shorter.
+        Converts pixel drag distance to a text-line delta using the log's
+        own font metrics, so dragging feels proportionate regardless of
+        font size. The window (and, if content overflows it, the outer
+        scrollbar) accommodates whatever height results - this only ever
+        changes the log's own size, nothing else's."""
+        line_px = tkfont.Font(font=self.log.cget("font")).metrics("linespace")
+        delta_lines = int(round((event.y_root - self._log_resize_start_y) / line_px))
+        self.log.config(height=max(4, self._log_resize_start_lines + delta_lines))
+
     # ------------------------------------------------------------------
     # Small layout helpers
     # ------------------------------------------------------------------
@@ -148,8 +163,26 @@ class ControlPanel(tk.Tk):
     # Layout
     # ------------------------------------------------------------------
     def _build_widgets(self):
-        outer = tk.Frame(self, bg=BG)
-        outer.pack(fill="both", expand=True, padx=18, pady=16)
+        # The whole panel scrolls: Advanced Settings (and now a
+        # user-resizable Activity Log, see the grip below) can make the
+        # real content taller than the window, so everything lives inside
+        # a Canvas+Scrollbar instead of a bare Frame. Mouse wheel scrolls
+        # it from anywhere except directly over the log (which keeps its
+        # own independent scrolling via its built-in scrollbar).
+        container = tk.Frame(self, bg=BG)
+        container.pack(fill="both", expand=True, padx=18, pady=16)
+
+        self._canvas = tk.Canvas(container, bg=BG, highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=self._canvas.yview)
+        self._canvas.configure(yscrollcommand=scrollbar.set)
+        self._canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y", padx=(8, 0))
+
+        outer = tk.Frame(self._canvas, bg=BG)
+        canvas_window = self._canvas.create_window((0, 0), window=outer, anchor="nw")
+        outer.bind("<Configure>", lambda e: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
+        self._canvas.bind("<Configure>", lambda e: self._canvas.itemconfig(canvas_window, width=e.width))
+        self._canvas.bind_all("<MouseWheel>", lambda e: self._canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
 
         # --- Header -------------------------------------------------------
         # Font size matches RUNNING/START PARCEL DISTRIBUTION below (12pt)
@@ -226,30 +259,46 @@ class ControlPanel(tk.Tk):
         self.safe_stop_button = self._outline_button(primary_row, "⏹  SAFE STOP", self._on_safe_stop, RED)
         self.safe_stop_button.grid(row=0, column=1, sticky="ew", padx=(6, 0), ipady=4)
 
-        # --- Folder shortcuts ---------------------------------------------
+        # --- Folder shortcuts: 2x2 grid - Sorting Facility/Center Console
+        # on top, Warehouse under Sorting Facility and Browse Month under
+        # Center Console directly below it. -------------------------------
         shortcuts_row = tk.Frame(outer, bg=BG)
         shortcuts_row.pack(fill="x", pady=(0, 14))
-        for i in range(3):
-            shortcuts_row.columnconfigure(i, weight=1)
+        shortcuts_row.columnconfigure(0, weight=1)
+        shortcuts_row.columnconfigure(1, weight=1)
         pad = dict(sticky="ew", ipady=6)
-        tk.Button(shortcuts_row, text="\U0001F4C1 SORTING FACILITY", command=self._on_open_facility,
-                  bg=CARD_BG, fg=TEXT_PRIMARY, relief="solid", bd=1, highlightbackground=BORDER,
-                  font=("Segoe UI", 9, "bold"), cursor="hand2").grid(row=0, column=0, padx=(0, 4), **pad)
-        tk.Button(shortcuts_row, text="\U0001F4C4 CENTER CONSOLE", command=self._on_open_console,
-                  bg=CARD_BG, fg=TEXT_PRIMARY, relief="solid", bd=1, highlightbackground=BORDER,
-                  font=("Segoe UI", 9, "bold"), cursor="hand2").grid(row=0, column=1, padx=4, **pad)
-        tk.Button(shortcuts_row, text="\U0001F3EC WAREHOUSE", command=self._on_open_warehouse,
-                  bg=CARD_BG, fg=TEXT_PRIMARY, relief="solid", bd=1, highlightbackground=BORDER,
-                  font=("Segoe UI", 9, "bold"), cursor="hand2").grid(row=0, column=2, padx=(4, 0), **pad)
 
-        # --- Activity Log ---------------------------------------------------
+        def _shortcut_button(text, command):
+            return tk.Button(shortcuts_row, text=text, command=command,
+                              bg=CARD_BG, fg=TEXT_PRIMARY, relief="solid", bd=1, highlightbackground=BORDER,
+                              font=("Segoe UI", 9, "bold"), cursor="hand2")
+
+        _shortcut_button("\U0001F4C1 SORTING FACILITY", self._on_open_facility).grid(
+            row=0, column=0, padx=(0, 4), pady=(0, 4), **pad)
+        _shortcut_button("\U0001F4C4 CENTER CONSOLE", self._on_open_console).grid(
+            row=0, column=1, padx=(4, 0), pady=(0, 4), **pad)
+        _shortcut_button("\U0001F3EC WAREHOUSE", self._on_open_warehouse).grid(
+            row=1, column=0, padx=(0, 4), **pad)
+        self.browse_month_button = _shortcut_button("\U0001F4C5 BROWSE MONTH", self._on_browse_month)
+        self.browse_month_button.grid(row=1, column=1, padx=(4, 0), **pad)
+
+        # --- Activity Log -----------------------------------------------
+        # Height is user-adjustable (drag the grip below it), independent
+        # of the outer window's own scrollbar - see _start_log_resize/
+        # _do_log_resize. expand=False so the log's own configured
+        # character-height (not leftover pack space) is what governs it.
         tk.Label(outer, text="Activity Log", bg=BG, fg=TEXT_PRIMARY,
                  font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 4))
         log_card = tk.Frame(outer, bg=CARD_BG, highlightbackground=BORDER, highlightthickness=1)
-        log_card.pack(fill="both", expand=True, pady=(0, 12))
+        log_card.pack(fill="x", expand=False)
         self.log = scrolledtext.ScrolledText(log_card, height=10, state="disabled", font=("Consolas", 9),
                                               bg=CARD_BG, fg=TEXT_PRIMARY, relief="flat", bd=0)
         self.log.pack(fill="both", expand=True, padx=1, pady=1)
+
+        log_grip = tk.Frame(outer, bg=BORDER, height=7, cursor="sb_v_double_arrow")
+        log_grip.pack(fill="x", pady=(2, 12))
+        log_grip.bind("<Button-1>", self._start_log_resize)
+        log_grip.bind("<B1-Motion>", self._do_log_resize)
 
         # --- Advanced Settings -----------------------------------------------
         self._build_advanced_settings(outer)
@@ -333,22 +382,6 @@ class ControlPanel(tk.Tk):
         self.repair_folders_button = self._outline_button(
             repair_inner, "REPAIR", self._on_repair_folders, BLUE, font_size=9)
         self.repair_folders_button.pack(anchor="w")
-
-        # 6. BROWSE MONTH - read-only, collates one month's files across
-        # every camera/device into a disposable Explorer-browsable view.
-        browse_card = self._card(self.advanced_body)
-        browse_inner = tk.Frame(browse_card, bg=CARD_BG)
-        browse_inner.pack(fill="x", padx=12, pady=10)
-        browse_inner.columnconfigure(0, weight=1)
-        browse_left = tk.Frame(browse_inner, bg=CARD_BG)
-        browse_left.grid(row=0, column=0, sticky="w")
-        tk.Label(browse_left, text="BROWSE MONTH", bg=CARD_BG, fg=TEXT_PRIMARY,
-                 font=("Segoe UI", 10, "bold"), anchor="w").pack(anchor="w")
-        tk.Label(browse_left, text="See one month across every camera/device in one place (read-only)",
-                 bg=CARD_BG, fg=TEXT_SECONDARY, font=("Segoe UI", 9), anchor="w").pack(anchor="w")
-        self.browse_month_button = self._outline_button(
-            browse_inner, "OPEN", self._on_browse_month, BLUE, font_size=9)
-        self.browse_month_button.grid(row=0, column=1, sticky="e", padx=(10, 0))
 
         # Preview only - lives inside Advanced Settings, below the other
         # controls. Same BooleanVar created in _build_widgets; Manual
