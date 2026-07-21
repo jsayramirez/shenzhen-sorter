@@ -14,6 +14,12 @@ Compliance Check's whole-Warehouse search never has to consider it.
 
 This never touches the real archive - it only reads the ledger and
 creates/removes links in the disposable scratch folder.
+
+By default, settings.BROWSE_MONTH_EXCLUDED_CATEGORIES leaves screenshots,
+screen recordings, and other Smart Device Media junk categories out of
+the view - see that constant's docstring for the full list and rationale.
+This only affects what gets linked here; every excluded file is still
+archived and fully preserved exactly as always.
 """
 
 import os
@@ -36,10 +42,12 @@ def available_months() -> list[tuple[int, int, int]]:
     """(year, month, count) for every Year/Month with archived content on
     record, most recent first - the data source for the GUI's Browse
     Month picker, so it only ever offers choices that have something to
-    show rather than a free-text field the user has to guess at."""
+    show rather than a free-text field the user has to guess at. Counts
+    already reflect BROWSE_MONTH_EXCLUDED_CATEGORIES, so what the picker
+    shows matches what build_month_view will actually link."""
     ledger.init_db()
     with ledger.connection() as conn:
-        months = ledger.months_with_content(conn)
+        months = ledger.months_with_content(conn, exclude_categories=settings.BROWSE_MONTH_EXCLUDED_CATEGORIES)
     return sorted(months, reverse=True)
 
 
@@ -64,7 +72,7 @@ def build_month_view(year: int, month: int) -> MonthViewResult:
 
     ledger.init_db()
     with ledger.connection() as conn:
-        rows = ledger.committed_in_month(conn, year, month)
+        rows = ledger.committed_in_month(conn, year, month, exclude_categories=settings.BROWSE_MONTH_EXCLUDED_CATEGORIES)
 
     linked = 0
     missing = []

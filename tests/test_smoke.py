@@ -658,13 +658,19 @@ def main():
     # flat view (two different cameras can produce the same filename).
     (synth_camera_dir / "BROWSE_REAL.JPG").write_bytes(b"a different camera's own BROWSE_REAL.JPG")
 
-    def _synth_committed(conn, filename, dest_path, capture_date):
+    # Two more synthetic entries, same month, testing the default category
+    # exclusion: one in an excluded Smart Device Media category (must NOT
+    # appear in the view), one in an included one (must still appear).
+    (synth_camera_dir / "SYNTH_SCREENSHOT.PNG").write_bytes(b"a screenshot, should be excluded by default")
+    (synth_camera_dir / "SYNTH_CAMERAIMPORT.JPG").write_bytes(b"a real camera-import photo, should stay included")
+
+    def _synth_committed(conn, filename, dest_path, capture_date, sorting_category=None):
         rid = ledger.new_receipt_id("SZ")
         ledger.start_session(conn, rid)
         dfid = ledger.add_dump_folder(conn, rid, "Synthetic", str(synth_camera_dir))
         txn_id = ledger.create_transaction(conn, rid, dfid, str(dest_path), filename)
         ledger.set_status(conn, txn_id, "COMMITTED", destination_path=str(dest_path),
-                           capture_date=capture_date)
+                           capture_date=capture_date, sorting_category=sorting_category)
 
     with ledger.connection() as conn:
         _synth_committed(conn, "SYNTH_SAMEMONTH.JPG", synth_camera_dir / "SYNTH_SAMEMONTH.JPG",
@@ -675,6 +681,10 @@ def main():
                           f"{test_year:04d}-{test_month:02d}")
         _synth_committed(conn, "BROWSE_REAL.JPG", synth_camera_dir / "BROWSE_REAL.JPG",
                           f"{test_year:04d}-{test_month:02d}")
+        _synth_committed(conn, "SYNTH_SCREENSHOT.PNG", synth_camera_dir / "SYNTH_SCREENSHOT.PNG",
+                          f"{test_year:04d}-{test_month:02d}", sorting_category="Screenshots")
+        _synth_committed(conn, "SYNTH_CAMERAIMPORT.JPG", synth_camera_dir / "SYNTH_CAMERAIMPORT.JPG",
+                          f"{test_year:04d}-{test_month:02d}", sorting_category="Camera Imports")
 
     view = browse.build_month_view(test_year, test_month)
     check("browse: view folder was created", view.view_dir.exists())
@@ -692,6 +702,10 @@ def main():
     check("browse: same-filename collision got a distinguishing suffix, not overwritten",
           "BROWSE_REAL.JPG" in linked_names and any(n.startswith("BROWSE_REAL (") for n in linked_names))
     check("browse: other-month file never appears in the view", "SYNTH_OTHERMONTH.JPG" not in linked_names)
+    check("browse: excluded category (Screenshots) is left out of the view by default",
+          "SYNTH_SCREENSHOT.PNG" not in linked_names)
+    check("browse: non-excluded Smart Device Media category (Camera Imports) still appears",
+          "SYNTH_CAMERAIMPORT.JPG" in linked_names)
 
     # A hardlink is a second name for the same bytes - confirm it's real
     # content, not an empty stub, and that copying OUT of the view produces
@@ -724,10 +738,13 @@ def main():
     found_count = next(c for y, m, c in available if y == test_year and m == test_month)
     with ledger.connection() as conn:
         real_count = conn.execute(
-            "SELECT COUNT(*) AS n FROM transactions WHERE status = 'COMMITTED' AND capture_date = ?",
+            "SELECT COUNT(*) AS n FROM transactions WHERE status = 'COMMITTED' AND capture_date = ? "
+            "AND (sorting_category IS NULL OR sorting_category NOT IN "
+            "('Screenshots', 'Screen Recordings', 'Other Media', 'Non-Media Files', 'Unknown Files'))",
             (f"{test_year:04d}-{test_month:02d}",),
         ).fetchone()["n"]
-    check("available_months: count matches the ledger exactly", found_count == real_count)
+    check("available_months: count matches the ledger exactly (after category exclusion)",
+          found_count == real_count)
 
     print(f"\n{len(_passed)} passed, {len(_failed)} failed")
     shutil.rmtree(sandbox, ignore_errors=True)

@@ -234,6 +234,18 @@ LAST_DELIVERY_CHECK_PATH = Path(r"S:\shenzhen-sorter\data\last_delivery_check.js
 # drives.
 MONTH_VIEW_DIR = Path(r"S:\shenzhen-sorter\data\Month Browser")
 
+# Browse Month leaves these Smart Device Media categories out of the view
+# by default - screenshots/screen recordings/unidentified junk clutter a
+# "what did I actually photograph this month" gallery. This ONLY affects
+# what Browse Month links into its disposable view; every one of these
+# files is still archived and fully preserved exactly as always. Dedicated
+# -camera categories (a camera's own archive_folder name, e.g. "Fujifilm
+# X100VI") never match anything in this set. See classify.py's
+# classify_smart_device_category() for where these category names come from.
+BROWSE_MONTH_EXCLUDED_CATEGORIES = {
+    "Screenshots", "Screen Recordings", "Other Media", "Non-Media Files", "Unknown Files",
+}
+
 # ---------------------------------------------------------------------------
 # Dry run - must default True. Only flip for a real run once you have
 # reviewed dry-run output and tested against disposable files.

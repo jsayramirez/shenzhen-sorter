@@ -255,27 +255,43 @@ def find_committed_by_destination_sha256(conn: sqlite3.Connection, sha256: str, 
     return conn.execute(query, params).fetchone()
 
 
-def committed_in_month(conn: sqlite3.Connection, year: int, month: int):
+def _category_exclusion_clause(exclude_categories) -> tuple[str, list]:
+    """Shared by committed_in_month/months_with_content: an optional
+    `AND (...)` fragment that drops rows whose sorting_category is in
+    exclude_categories, while never dropping a NULL category (a NULL
+    can't match anything in the exclusion list, and SQL's NOT IN would
+    otherwise silently exclude it too via NULL-comparison semantics)."""
+    if not exclude_categories:
+        return "", []
+    placeholders = ",".join("?" for _ in exclude_categories)
+    return f" AND (sorting_category IS NULL OR sorting_category NOT IN ({placeholders}))", list(exclude_categories)
+
+
+def committed_in_month(conn: sqlite3.Connection, year: int, month: int, exclude_categories=None):
     """Every COMMITTED transaction whose resolved capture date falls in
     this Year/Month, regardless of which camera/category it landed under -
-    the data source for the Browse Month view (browse.py)."""
+    the data source for the Browse Month view (browse.py). exclude_categories
+    is an optional set of sorting_category values to leave out entirely
+    (Browse Month uses this to skip screenshots/junk categories by default;
+    every excluded file is still archived and untouched - this only affects
+    what gets linked into the disposable view)."""
     capture_date = f"{year:04d}-{month:02d}"
-    return conn.execute(
-        "SELECT * FROM transactions WHERE status = 'COMMITTED' AND capture_date = ? "
-        "ORDER BY destination_path",
-        (capture_date,),
-    ).fetchall()
+    clause, extra_params = _category_exclusion_clause(exclude_categories)
+    query = "SELECT * FROM transactions WHERE status = 'COMMITTED' AND capture_date = ?" + clause + " ORDER BY destination_path"
+    return conn.execute(query, [capture_date] + extra_params).fetchall()
 
 
-def months_with_content(conn: sqlite3.Connection):
+def months_with_content(conn: sqlite3.Connection, exclude_categories=None):
     """Every distinct Year/Month that has at least one COMMITTED file on
-    record, with its count - powers Browse Month's picker so it only ever
-    offers choices that actually have something to show."""
-    rows = conn.execute(
-        "SELECT capture_date, COUNT(*) AS n FROM transactions "
-        "WHERE status = 'COMMITTED' AND capture_date IS NOT NULL "
-        "GROUP BY capture_date ORDER BY capture_date"
-    ).fetchall()
+    record (after the same optional category exclusion as
+    committed_in_month), with its count - powers Browse Month's picker so
+    it only ever offers choices that actually have something to show,
+    with a count matching what will actually appear in the view."""
+    clause, extra_params = _category_exclusion_clause(exclude_categories)
+    query = ("SELECT capture_date, COUNT(*) AS n FROM transactions "
+             "WHERE status = 'COMMITTED' AND capture_date IS NOT NULL" + clause +
+             " GROUP BY capture_date ORDER BY capture_date")
+    rows = conn.execute(query, extra_params).fetchall()
     result = []
     for row in rows:
         year_str, month_str = row["capture_date"].split("-")

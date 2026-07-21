@@ -742,7 +742,7 @@ class ControlPanel(tk.Tk):
 
         dialog = tk.Toplevel(self)
         dialog.title("Browse Month")
-        dialog.geometry("400x300")
+        dialog.geometry("400x320")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -753,7 +753,9 @@ class ControlPanel(tk.Tk):
             text="Collates every archived file captured in the chosen\n"
                  "Year/Month, across every camera and Smart Device Media,\n"
                  "into one disposable folder and opens it in Explorer.\n"
-                 "Read-only - nothing in the Warehouse is moved or changed.",
+                 "Read-only - nothing in the Warehouse is moved or changed.\n"
+                 "Screenshots, screen recordings, and unidentified files\n"
+                 "are left out of the view (still fully archived either way).",
             font=("Segoe UI", 9), justify="left",
         ).pack(padx=16, pady=(0, 12))
 
