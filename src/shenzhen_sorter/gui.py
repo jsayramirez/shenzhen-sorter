@@ -709,7 +709,7 @@ class ControlPanel(tk.Tk):
 
         dialog = tk.Toplevel(self)
         dialog.title("Browse Month")
-        dialog.geometry("340x220")
+        dialog.geometry("400x300")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
@@ -733,13 +733,13 @@ class ControlPanel(tk.Tk):
         tk.Label(form, text="Year:").grid(row=0, column=0, sticky="w", pady=4)
         year_var = tk.StringVar(value=str(years_desc[0]))
         year_menu = tk.OptionMenu(form, year_var, *[str(y) for y in years_desc])
-        year_menu.config(width=14)
+        year_menu.config(width=18)
         year_menu.grid(row=0, column=1, padx=8, sticky="w")
 
         tk.Label(form, text="Month:").grid(row=1, column=0, sticky="w", pady=4)
         month_var = tk.StringVar()
         month_menu = tk.OptionMenu(form, month_var, "")
-        month_menu.config(width=14)
+        month_menu.config(width=18)
         month_menu.grid(row=1, column=1, padx=8, sticky="w")
 
         def refresh_months(*_args):
