@@ -73,6 +73,7 @@ def main():
     settings.SAFE_STOP_FLAG_PATH = sandbox / "safe_stop.flag"
     settings.LAST_COMPLIANCE_CHECK_PATH = sandbox / "last_compliance_check.json"
     settings.LAST_DELIVERY_CHECK_PATH = sandbox / "last_delivery_check.json"
+    settings.MONTH_VIEW_DIR = sandbox / "Month Browser"
     settings.FILE_QUIET_SECONDS = 0
     settings.FOLDER_QUIET_SECONDS = 0
 
@@ -585,6 +586,130 @@ def main():
     repair3 = folder_repair.repair_folders()
     check("repair: safe to auto-create the Warehouse when the ledger has zero history",
           "Warehouse" in repair3.created and archive.exists() and not repair3.refused)
+
+    # --- Test 9: control.cmd_open_warehouse - the GUI's new WAREHOUSE
+    # shortcut button. Must open the real archive root when present, and
+    # must refuse (not silently mkdir it) when it's missing, since an
+    # absent Warehouse is exactly the condition Repair Folders guards -
+    # this command must not offer a side door around that check.
+    import os as os_mod
+    startfile_calls = []
+    real_startfile = os_mod.startfile
+    os_mod.startfile = lambda path: startfile_calls.append(path)
+    try:
+        settings.ARCHIVE_ROOT = archive
+        archive.mkdir(parents=True, exist_ok=True)
+        control.cmd_open_warehouse()
+        check("open-warehouse: opens the archive root when it exists",
+              startfile_calls == [str(archive)])
+
+        startfile_calls.clear()
+        shutil.rmtree(archive)
+        control.cmd_open_warehouse()
+        check("open-warehouse: refuses (does not open or create) when Warehouse is missing",
+              not startfile_calls and not archive.exists())
+    finally:
+        os_mod.startfile = real_startfile
+
+    # --- Test 10: Browse Month - a read-only, disposable hardlinked view
+    # collating one month's archived files across every camera/device.
+    # Uses one real committed file (for a genuine end-to-end case) plus
+    # ledger rows inserted directly via the ledger API (same functions
+    # pipeline.py itself uses) for the multi-camera/collision/missing
+    # cases, since coordinating multiple real camera samples onto the
+    # same real capture month isn't controllable. ---
+    from shenzhen_sorter import browse
+
+    archive.mkdir(parents=True, exist_ok=True)
+    browse_folder = shenzhen / "Browse Month Test"
+    browse_folder.mkdir()
+    shutil.copy2(SAMPLE_SOURCE, browse_folder / "BROWSE_REAL.JPG")
+    browse_result = pipeline.run_session(dry_run=False)
+    # Not asserting on session-level committed/total counts: the shared
+    # intake root can still hold earlier tests' un-shipped dump folders
+    # (e.g. the disk-full and Warehouse-missing tests intentionally leave
+    # theirs behind), which this run also sweeps up alongside BROWSE_REAL.JPG.
+    # What actually matters here is that our specific file made it through.
+    with ledger.connection() as conn:
+        real_txn = conn.execute(
+            "SELECT * FROM transactions WHERE original_filename = 'BROWSE_REAL.JPG' AND status = 'COMMITTED'"
+        ).fetchone()
+    check("browse test: real file committed", real_txn is not None)
+    test_year, test_month = (int(x) for x in real_txn["capture_date"].split("-"))
+
+    # Synthetic second camera, same month - real file on disk so it can
+    # actually be hardlinked.
+    synth_camera_dir = archive / "Synthetic Camera" / str(test_year) / f"{test_month:02d}-Synth"
+    synth_camera_dir.mkdir(parents=True)
+    (synth_camera_dir / "SYNTH_SAMEMONTH.JPG").write_bytes(b"synthetic same-month content")
+
+    # Synthetic entry, DIFFERENT month - must NOT show up in the view.
+    other_month = 1 if test_month != 1 else 2
+    synth_other_dir = archive / "Synthetic Camera" / str(test_year) / f"{other_month:02d}-Other"
+    synth_other_dir.mkdir(parents=True)
+    (synth_other_dir / "SYNTH_OTHERMONTH.JPG").write_bytes(b"synthetic other-month content")
+
+    # Synthetic entry, same month, but the file no longer exists on disk -
+    # exercises the "missing" reporting path.
+    synth_missing_path = synth_camera_dir / "SYNTH_GONE.JPG"
+
+    # A synthetic entry sharing a filename with the real committed file,
+    # also in the target month - exercises collision suffixing in the
+    # flat view (two different cameras can produce the same filename).
+    (synth_camera_dir / "BROWSE_REAL.JPG").write_bytes(b"a different camera's own BROWSE_REAL.JPG")
+
+    def _synth_committed(conn, filename, dest_path, capture_date):
+        rid = ledger.new_receipt_id("SZ")
+        ledger.start_session(conn, rid)
+        dfid = ledger.add_dump_folder(conn, rid, "Synthetic", str(synth_camera_dir))
+        txn_id = ledger.create_transaction(conn, rid, dfid, str(dest_path), filename)
+        ledger.set_status(conn, txn_id, "COMMITTED", destination_path=str(dest_path),
+                           capture_date=capture_date)
+
+    with ledger.connection() as conn:
+        _synth_committed(conn, "SYNTH_SAMEMONTH.JPG", synth_camera_dir / "SYNTH_SAMEMONTH.JPG",
+                          f"{test_year:04d}-{test_month:02d}")
+        _synth_committed(conn, "SYNTH_OTHERMONTH.JPG", synth_other_dir / "SYNTH_OTHERMONTH.JPG",
+                          f"{test_year:04d}-{other_month:02d}")
+        _synth_committed(conn, "SYNTH_GONE.JPG", synth_missing_path,
+                          f"{test_year:04d}-{test_month:02d}")
+        _synth_committed(conn, "BROWSE_REAL.JPG", synth_camera_dir / "BROWSE_REAL.JPG",
+                          f"{test_year:04d}-{test_month:02d}")
+
+    view = browse.build_month_view(test_year, test_month)
+    check("browse: view folder was created", view.view_dir.exists())
+    # Not asserting an exact total: the shared intake root's earlier
+    # leftover commits (see above) may legitimately land in this same
+    # month too - that's correct real-world behavior for Browse Month,
+    # not something to suppress. What matters is that our specific
+    # entries are present (or absent, for the other-month one) and that
+    # the collision got suffixed rather than silently overwritten.
+    check("browse: links at least our real + same-month synthetic entries", view.linked >= 3)
+    check("browse: the genuinely-missing entry is reported, not silently dropped",
+          synth_missing_path.exists() is False and str(synth_missing_path) in view.missing)
+    linked_names = sorted(p.name for p in view.view_dir.iterdir())
+    check("browse: same-month synthetic entry is present", "SYNTH_SAMEMONTH.JPG" in linked_names)
+    check("browse: same-filename collision got a distinguishing suffix, not overwritten",
+          "BROWSE_REAL.JPG" in linked_names and any(n.startswith("BROWSE_REAL (") for n in linked_names))
+    check("browse: other-month file never appears in the view", "SYNTH_OTHERMONTH.JPG" not in linked_names)
+
+    # A hardlink is a second name for the same bytes - confirm it's real
+    # content, not an empty stub, and that copying OUT of the view produces
+    # a normal independent file (not another link into the original).
+    linked_real = view.view_dir / "BROWSE_REAL.JPG"
+    check("browse: hardlinked file content matches the original",
+          linked_real.read_bytes() == SAMPLE_SOURCE.read_bytes())
+    trip_folder = archive / "2026 July - Trip Test"
+    trip_folder.mkdir()
+    shutil.copy2(linked_real, trip_folder / "BROWSE_REAL.JPG")
+    check("browse: copying out of the view produces a real independent file",
+          (trip_folder / "BROWSE_REAL.JPG").read_bytes() == SAMPLE_SOURCE.read_bytes())
+
+    # Re-running Browse Month for a different (empty) month clears the old view.
+    empty_month = 6 if test_month != 6 else 7
+    view2 = browse.build_month_view(test_year, empty_month)
+    check("browse: re-running for an empty month clears the previous view's contents",
+          view2.linked == 0 and list(view.view_dir.iterdir()) == [])
 
     print(f"\n{len(_passed)} passed, {len(_failed)} failed")
     shutil.rmtree(sandbox, ignore_errors=True)

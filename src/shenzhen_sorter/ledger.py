@@ -255,6 +255,18 @@ def find_committed_by_destination_sha256(conn: sqlite3.Connection, sha256: str, 
     return conn.execute(query, params).fetchone()
 
 
+def committed_in_month(conn: sqlite3.Connection, year: int, month: int):
+    """Every COMMITTED transaction whose resolved capture date falls in
+    this Year/Month, regardless of which camera/category it landed under -
+    the data source for the Browse Month view (browse.py)."""
+    capture_date = f"{year:04d}-{month:02d}"
+    return conn.execute(
+        "SELECT * FROM transactions WHERE status = 'COMMITTED' AND capture_date = ? "
+        "ORDER BY destination_path",
+        (capture_date,),
+    ).fetchall()
+
+
 def unresolved_transactions(conn: sqlite3.Connection, dump_folder_id: int):
     """Everything not COMMITTED - what a retry/resume pass must target."""
     return conn.execute(

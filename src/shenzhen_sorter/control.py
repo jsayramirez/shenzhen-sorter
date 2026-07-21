@@ -20,7 +20,7 @@ import os
 import time
 
 from config import settings
-from . import folder_repair, ledger, preflight
+from . import browse, folder_repair, ledger, preflight
 
 
 def is_safe_stopped() -> bool:
@@ -88,6 +88,19 @@ def cmd_open_receipt_console():
     os.startfile(str(settings.RECEIPT_CONSOLE_DIR))
 
 
+def cmd_open_warehouse():
+    """Opens the archive root (spec's "Master Archive"). Deliberately does
+    NOT create the folder if it's missing, unlike the two conveniences
+    above - an absent Warehouse is exactly the condition Repair Folders
+    guards carefully (see folder_repair.py), so silently mkdir-ing it here
+    would bypass that same-history check through a side door."""
+    if not settings.ARCHIVE_ROOT.exists():
+        print(f"Warehouse folder not found: {settings.ARCHIVE_ROOT}")
+        print("Use Repair Folders (or fix the underlying condition) first.")
+        return
+    os.startfile(str(settings.ARCHIVE_ROOT))
+
+
 def cmd_repair_folders():
     result = folder_repair.repair_folders()
     if result.created:
@@ -98,11 +111,21 @@ def cmd_repair_folders():
         print(f"REFUSED: {msg}")
 
 
+def cmd_browse_month(year: int, month: int):
+    result = browse.build_month_view(year, month)
+    print(f"Browse Month {year:04d}-{month:02d}: {result.linked} file(s) linked into {result.view_dir}")
+    if result.missing:
+        print(f"  {len(result.missing)} ledger-recorded file(s) could not be found on disk (see below):")
+        for path in result.missing:
+            print(f"    {path}")
+    os.startfile(str(result.view_dir))
+
+
 def main():
     parser = argparse.ArgumentParser(prog="shenzhen-control")
     parser.add_argument("action", choices=[
         "start", "safe-stop", "status", "open-sorting-facility", "open-receipt-console",
-        "repair-folders",
+        "open-warehouse", "repair-folders",
     ])
     args = parser.parse_args()
     {
@@ -111,6 +134,7 @@ def main():
         "status": cmd_status,
         "open-sorting-facility": cmd_open_sorting_facility,
         "open-receipt-console": cmd_open_receipt_console,
+        "open-warehouse": cmd_open_warehouse,
         "repair-folders": cmd_repair_folders,
     }[args.action]()
 

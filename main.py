@@ -14,6 +14,7 @@ Entry point. Run from anywhere with:
     python S:\\shenzhen-sorter\\main.py safe-stop
     python S:\\shenzhen-sorter\\main.py open-sorting-facility
     python S:\\shenzhen-sorter\\main.py open-receipt-console
+    python S:\\shenzhen-sorter\\main.py open-warehouse
     python S:\\shenzhen-sorter\\main.py repair-folders
         - Recreates the Shenzhen Sorting Facility / Receipt Center Console /
           Warehouse folder structure if any of it was deleted, renamed, or
@@ -21,6 +22,14 @@ Entry point. Run from anywhere with:
           if the ledger has no prior archived content on record - otherwise
           this refuses and tells you why, rather than risk masking real
           data loss or a disconnected/renamed drive.
+    python S:\\shenzhen-sorter\\main.py browse-month <year> <month>
+        - Read-only: collates every archived file captured that Year/Month,
+          across every camera and Smart Device Media, into one disposable
+          hardlinked folder and opens it in Explorer. Nothing in the real
+          archive is moved or copied by this - it's just a temporary,
+          always-regenerated view for browsing. Copying a file out of the
+          view into your own hand-made trip folder produces a real,
+          independent copy, same as copying it from its original location.
 """
 
 import sys
@@ -76,8 +85,15 @@ def main():
         control.cmd_open_sorting_facility()
     elif action == "open-receipt-console":
         control.cmd_open_receipt_console()
+    elif action == "open-warehouse":
+        control.cmd_open_warehouse()
     elif action == "repair-folders":
         control.cmd_repair_folders()
+    elif action == "browse-month":
+        if len(sys.argv) < 4:
+            print("Usage: browse-month <year> <month>")
+            return
+        control.cmd_browse_month(int(sys.argv[2]), int(sys.argv[3]))
     else:
         print(__doc__)
 

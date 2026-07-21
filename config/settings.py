@@ -226,6 +226,14 @@ LAST_COMPLIANCE_CHECK_PATH = Path(r"S:\shenzhen-sorter\data\last_compliance_chec
 # control panel's status line.
 LAST_DELIVERY_CHECK_PATH = Path(r"S:\shenzhen-sorter\data\last_delivery_check.json")
 
+# Browse Month: a disposable, always-regenerated folder of hardlinks (not
+# copies) collating one month's archived files across every camera/device
+# into one flat, Explorer-browsable view. Lives outside ARCHIVE_ROOT so
+# Compliance Check's whole-Warehouse search never has to consider it, and
+# on the same volume as the Warehouse since NTFS hardlinks can't cross
+# drives.
+MONTH_VIEW_DIR = Path(r"S:\shenzhen-sorter\data\Month Browser")
+
 # ---------------------------------------------------------------------------
 # Dry run - must default True. Only flip for a real run once you have
 # reviewed dry-run output and tested against disposable files.
