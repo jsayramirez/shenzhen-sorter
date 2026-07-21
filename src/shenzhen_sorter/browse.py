@@ -32,6 +32,17 @@ class MonthViewResult:
     missing: list  # destination_paths the ledger recorded but weren't found on disk
 
 
+def available_months() -> list[tuple[int, int, int]]:
+    """(year, month, count) for every Year/Month with archived content on
+    record, most recent first - the data source for the GUI's Browse
+    Month picker, so it only ever offers choices that have something to
+    show rather than a free-text field the user has to guess at."""
+    ledger.init_db()
+    with ledger.connection() as conn:
+        months = ledger.months_with_content(conn)
+    return sorted(months, reverse=True)
+
+
 def _non_colliding_name(used_names: set, name: str) -> str:
     if name not in used_names:
         return name

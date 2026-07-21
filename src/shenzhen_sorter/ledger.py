@@ -267,6 +267,22 @@ def committed_in_month(conn: sqlite3.Connection, year: int, month: int):
     ).fetchall()
 
 
+def months_with_content(conn: sqlite3.Connection):
+    """Every distinct Year/Month that has at least one COMMITTED file on
+    record, with its count - powers Browse Month's picker so it only ever
+    offers choices that actually have something to show."""
+    rows = conn.execute(
+        "SELECT capture_date, COUNT(*) AS n FROM transactions "
+        "WHERE status = 'COMMITTED' AND capture_date IS NOT NULL "
+        "GROUP BY capture_date ORDER BY capture_date"
+    ).fetchall()
+    result = []
+    for row in rows:
+        year_str, month_str = row["capture_date"].split("-")
+        result.append((int(year_str), int(month_str), row["n"]))
+    return result
+
+
 def unresolved_transactions(conn: sqlite3.Connection, dump_folder_id: int):
     """Everything not COMMITTED - what a retry/resume pass must target."""
     return conn.execute(

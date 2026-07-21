@@ -24,6 +24,7 @@ from tkinter import messagebox, scrolledtext
 
 from config import settings
 from . import browse, control, folder_repair, integrity, ledger, pipeline, preflight
+from .common import MONTH_NAMES
 
 REFRESH_MS = 3000     # how often we re-check real status/countdown against disk+ledger
 TICK_MS = 1000        # how often the countdown label re-renders between real refreshes
@@ -680,17 +681,32 @@ class ControlPanel(tk.Tk):
         tk.Button(button_row, text="Cancel", width=12, command=dialog.destroy).grid(row=0, column=1, padx=6)
 
     def _on_browse_month(self):
-        """Read-only: prompts for a Year/Month, then builds the disposable
-        hardlinked view (browse.build_month_view) and opens it in Explorer.
-        Nothing about the real archive changes - see browse.py's docstring.
-        Blocked while busy for the same reason every other action here is:
-        one thing happening at a time keeps the mental model simple, even
-        though this particular action never touches the writer lock."""
+        """Read-only: lets the user PICK a Year/Month (not type one),
+        restricted to combinations that actually have archived content on
+        record - browse.available_months() is the ledger-backed source of
+        truth for that, so there's never a choice that comes back empty.
+        Then builds the disposable hardlinked view (browse.build_month_view)
+        and opens it in Explorer. Nothing about the real archive changes -
+        see browse.py's docstring. Blocked while busy for the same reason
+        every other action here is: one thing happening at a time keeps
+        the mental model simple, even though this particular action never
+        touches the writer lock."""
         if self._busy:
             self._log("A transfer or check is already running - please wait for it to finish.")
             return
 
-        now = time.localtime()
+        months = browse.available_months()  # [(year, month, count), ...]
+        if not months:
+            messagebox.showinfo("Browse Month", "Nothing has been archived yet - there's no content to browse.")
+            return
+
+        by_year = {}
+        for year, month, count in months:
+            by_year.setdefault(year, []).append((month, count))
+        for year in by_year:
+            by_year[year].sort()
+        years_desc = sorted(by_year, reverse=True)
+
         dialog = tk.Toplevel(self)
         dialog.title("Browse Month")
         dialog.geometry("340x220")
@@ -701,31 +717,46 @@ class ControlPanel(tk.Tk):
         tk.Label(dialog, text="Browse Month", font=("Segoe UI", 11, "bold")).pack(pady=(14, 6))
         tk.Label(
             dialog,
-            text="Collates every archived file captured this Year/Month,\n"
-                 "across every camera and Smart Device Media, into one\n"
-                 "disposable folder and opens it in Explorer. Read-only -\n"
-                 "nothing in the Warehouse is moved or changed.",
+            text="Collates every archived file captured in the chosen\n"
+                 "Year/Month, across every camera and Smart Device Media,\n"
+                 "into one disposable folder and opens it in Explorer.\n"
+                 "Read-only - nothing in the Warehouse is moved or changed.",
             font=("Segoe UI", 9), justify="left",
         ).pack(padx=16, pady=(0, 12))
 
         form = tk.Frame(dialog)
         form.pack()
+
+        def month_label(month, count):
+            return f"{MONTH_NAMES[month - 1]} ({count})"
+
         tk.Label(form, text="Year:").grid(row=0, column=0, sticky="w", pady=4)
-        year_var = tk.StringVar(value=str(now.tm_year))
-        tk.Entry(form, textvariable=year_var, width=10).grid(row=0, column=1, padx=8)
-        tk.Label(form, text="Month (1-12):").grid(row=1, column=0, sticky="w", pady=4)
-        month_var = tk.StringVar(value=str(now.tm_mon))
-        tk.Entry(form, textvariable=month_var, width=10).grid(row=1, column=1, padx=8)
+        year_var = tk.StringVar(value=str(years_desc[0]))
+        year_menu = tk.OptionMenu(form, year_var, *[str(y) for y in years_desc])
+        year_menu.config(width=14)
+        year_menu.grid(row=0, column=1, padx=8, sticky="w")
+
+        tk.Label(form, text="Month:").grid(row=1, column=0, sticky="w", pady=4)
+        month_var = tk.StringVar()
+        month_menu = tk.OptionMenu(form, month_var, "")
+        month_menu.config(width=14)
+        month_menu.grid(row=1, column=1, padx=8, sticky="w")
+
+        def refresh_months(*_args):
+            entries = by_year[int(year_var.get())]
+            labels = [month_label(m, c) for m, c in entries]
+            menu = month_menu["menu"]
+            menu.delete(0, "end")
+            for label in labels:
+                menu.add_command(label=label, command=lambda v=label: month_var.set(v))
+            month_var.set(labels[-1])  # most recent month within the selected year
+
+        year_var.trace_add("write", refresh_months)
+        refresh_months()
 
         def on_browse():
-            try:
-                year = int(year_var.get())
-                month = int(month_var.get())
-                if not (1 <= month <= 12):
-                    raise ValueError("Month must be between 1 and 12")
-            except ValueError as e:
-                messagebox.showerror("Invalid value", f"Please enter a valid year and month.\n({e})", parent=dialog)
-                return
+            year = int(year_var.get())
+            month = int(month_var.get().split("-", 1)[0])
             dialog.destroy()
             self._busy = True
             self._set_busy_ui(True)

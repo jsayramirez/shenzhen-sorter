@@ -711,6 +711,24 @@ def main():
     check("browse: re-running for an empty month clears the previous view's contents",
           view2.linked == 0 and list(view.view_dir.iterdir()) == [])
 
+    # --- Test 11: available_months() - the picker's data source. Must
+    # only ever list Year/Months that genuinely have committed content
+    # (never the empty one we just proved above), with accurate counts,
+    # so the GUI dialog can never offer a choice that comes back empty. ---
+    available = browse.available_months()
+    check("available_months: is non-empty once real content exists", len(available) > 0)
+    check("available_months: includes our test month", any(y == test_year and m == test_month for y, m, _ in available))
+    check("available_months: never lists the genuinely-empty month we just tested",
+          not any(y == test_year and m == empty_month for y, m, _ in available))
+    check("available_months: sorted most-recent-first", available == sorted(available, reverse=True))
+    found_count = next(c for y, m, c in available if y == test_year and m == test_month)
+    with ledger.connection() as conn:
+        real_count = conn.execute(
+            "SELECT COUNT(*) AS n FROM transactions WHERE status = 'COMMITTED' AND capture_date = ?",
+            (f"{test_year:04d}-{test_month:02d}",),
+        ).fetchone()["n"]
+    check("available_months: count matches the ledger exactly", found_count == real_count)
+
     print(f"\n{len(_passed)} passed, {len(_failed)} failed")
     shutil.rmtree(sandbox, ignore_errors=True)
     sys.exit(1 if _failed else 0)
