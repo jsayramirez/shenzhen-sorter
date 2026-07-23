@@ -257,7 +257,7 @@
     <h1>Shenzhen Sorting Facility</h1>
     <p class="subtitle">What everything means, and what to do when</p>
     <div class="manifest-row">
-      <span>Revision: <b>v1.0</b></span>
+      <span>Revision: <b>v1.1</b></span>
       <span>Facility: <b>Desktop\Shenzhen Sorting Facility</b></span>
       <span>Warehouse: <b>S:\Warehouse</b></span>
       <span>Console: <b>Desktop\Receipt Center Console</b></span>
@@ -291,8 +291,8 @@
         Double-click your <code class="k">Shenzhen Sorting Control</code> shortcut.</p>
       </li>
       <li>
-        <p><span class="step-title">Press Manual Onboarding</span>
-        You get a 10-second hold first — the button turns into <b>Stop</b> during that window in case you meant to press something else. Let it run out, and sorting begins for real.</p>
+        <p><span class="step-title">Press the big green button</span>
+        Labeled <code class="k">Start Parcel Distribution</code> — this is Manual Onboarding. You get a 10-second hold first — the button turns into <b>Stop</b> during that window in case you meant to press something else. Let it run out, and sorting begins for real.</p>
       </li>
       <li>
         <p><span class="step-title">Check the receipt</span>
@@ -316,17 +316,22 @@
     </div>
 
     <h3>Buttons and controls</h3>
+    <p class="ink2">The panel scrolls if your window's short — everything below is always reachable, even at a small window size. The Activity Log has its own drag handle just below it if you want it taller or shorter.</p>
     <div class="tablewrap">
     <table class="ref">
       <tr><th>Control</th><th>What it does</th></tr>
-      <tr><td class="term">Preview only</td><td>Tick this before pressing Manual Onboarding to see exactly what would happen — nothing is copied, moved, or changed.</td></tr>
-      <tr><td class="term">Manual Onboarding</td><td>Sorts whatever's sitting in the facility right now. Ten-second hold first (click again to cancel). Grayed out while a transfer is already running.</td></tr>
+      <tr><td class="term">Start Parcel Distribution</td><td>The big green button. This is Manual Onboarding — sorts whatever's sitting in the facility right now. Ten-second hold first (click again to cancel). Grayed out while a transfer is already running.</td></tr>
       <tr><td class="term">Start / Resume</td><td>Clears a Safe Stop, or lets you retry after a safety pause has been fixed.</td></tr>
       <tr><td class="term">Safe Stop</td><td>Stops new sorting from starting. Always clickable, even mid-transfer — it just means nothing new begins after the current one finishes.</td></tr>
-      <tr><td class="term">Open Sorting Facility / Open Receipt Console</td><td>Shortcuts to the two folders you'll actually look at day to day.</td></tr>
+      <tr><td class="term">Sorting Facility / Center Console</td><td>Shortcuts to the two folders you'll actually look at day to day, top row of the shortcut grid.</td></tr>
+      <tr><td class="term">Warehouse</td><td>Opens the archive root directly. Unlike the other two shortcuts, it deliberately refuses to open (and won't create it for you) if the Warehouse folder is missing — see Repair Folders below for why.</td></tr>
+      <tr><td class="term">Browse Month</td><td>See the glossary below — opens a read-only view of one month across every camera/device at once.</td></tr>
+      <tr><td class="term">Advanced Settings</td><td>Collapsed by default; click to expand. Holds Delivery Check, Compliance Check, Deep Verification, Timer Settings, and Repair Folders — the controls you'll reach for occasionally, not every session.</td></tr>
+      <tr><td class="term">Preview only</td><td>Inside Advanced Settings. Tick this before pressing Start Parcel Distribution to see exactly what would happen — nothing is copied, moved, or changed.</td></tr>
       <tr><td class="term">Timer settings</td><td>How long a file has to sit untouched before it's treated as finished arriving (default: 5 minutes per file, 30 minutes for the whole folder). Doesn't apply to Manual Onboarding, which only needs a couple of seconds since you're right there confirming it yourself.</td></tr>
       <tr><td class="term">Deep verify</td><td>Tick this before a Compliance Check to re-read every archived file's actual content, not just check it's present — catches quiet corruption, at the cost of taking longer.</td></tr>
       <tr><td class="term">Compliance Check / Delivery Check</td><td>See the glossary below — each writes its own receipt.</td></tr>
+      <tr><td class="term">Repair Folders</td><td>See the glossary below — rebuilds the working folders if any of them get deleted, renamed, or moved.</td></tr>
     </table>
     </div>
   </section>
@@ -344,7 +349,11 @@
       </div>
       <div>
         <dt>Warehouse</dt>
-        <dd>The permanent archive on the S: drive. Organized by camera first, then Year → Month.</dd>
+        <dd>The permanent archive on the S: drive. Organized by camera first, then Year → Month. You're free to reorganize inside it by hand — see "Trip folder" below — Compliance Check is designed around that.</dd>
+      </div>
+      <div>
+        <dt>Trip folder</dt>
+        <dd>A folder you make yourself, anywhere inside the Warehouse (e.g. <code class="k">2026 July - Santa Maria</code>), by copying files you like out of Browse Month. Entirely your own convention — the program doesn't require or manage these, and copying into one never affects the originals still sitting in their camera folders.</dd>
       </div>
       <div>
         <dt>Shipped</dt>
@@ -375,6 +384,14 @@
         <dd>Confirms everything sitting in Shipped is safely backed up in the Warehouse — the check to run before you delete or clean out Shipped.</dd>
       </div>
       <div>
+        <dt>Browse Month</dt>
+        <dd>A read-only way to see one Year/Month across every camera and device at once, instead of opening each camera's folder separately. Pick from a list of months that actually have content — it opens a temporary folder in Explorer built from the real files (no extra copies, no disk space used), so you can look through everything together and copy out whatever you want into a Trip folder. Nothing in the Warehouse is touched. Screenshots, screen recordings, and unidentified files are left out of the view by default (still fully archived either way) so it stays focused on real photos.</dd>
+      </div>
+      <div>
+        <dt>Repair Folders</dt>
+        <dd>Rebuilds the Sorting Facility, Shipped, Receipt Center Console, and Glove Box if any of them get deleted, renamed, or moved — so the program doesn't just quietly stop working. The Warehouse itself is treated more carefully: it's only rebuilt automatically if the ledger has no prior archived content on record. If the ledger remembers files but the Warehouse folder is missing, Repair Folders refuses and tells you why instead of guessing — that could mean the drive disconnected, not that the archive is actually gone.</dd>
+      </div>
+      <div>
         <dt>Clear / Not clear</dt>
         <dd>The verdict at the top of a Compliance or Delivery Check receipt. Clear means go ahead. Not clear names exactly what wasn't confirmed, and why.</dd>
       </div>
@@ -390,7 +407,7 @@
 
     <div class="scenario">
       <p class="q">I just got back from a trip with a full memory card.</p>
-      <p>Drop the whole card's folder straight into the Sorting Facility. Open the panel, press <b>Manual Onboarding</b>, let the ten-second hold run out. Check the receipt when it's done.</p>
+      <p>Drop the whole card's folder straight into the Sorting Facility. Open the panel, press <b>Start Parcel Distribution</b>, let the ten-second hold run out. Check the receipt when it's done.</p>
     </div>
 
     <div class="scenario">
@@ -409,8 +426,18 @@
     </div>
 
     <div class="scenario">
+      <p class="q">I want to pull together everything from a trip, across all my cameras.</p>
+      <p>Press <b>Browse Month</b>, pick the Year/Month. Everything from that month, across every camera and device, opens together in one Explorer window — copy whatever you want out into a Trip folder you make yourself inside the Warehouse. The originals stay exactly where they are.</p>
+    </div>
+
+    <div class="scenario">
+      <p class="q">One of the working folders got deleted, renamed, or moved by accident.</p>
+      <p>Open Advanced Settings and press <b>Repair Folders</b>. It rebuilds Sorting Facility, Shipped, Receipt Center Console, and Glove Box on the spot. The Warehouse is the one exception — if it's missing but the ledger remembers content, Repair Folders refuses and tells you why rather than risk quietly starting a second, empty archive.</p>
+    </div>
+
+    <div class="scenario">
       <p class="q">The countdown says "ready in 04:23" and I don't want to wait.</p>
-      <p>Press <b>Manual Onboarding</b> instead — it only needs a couple of seconds, not the full timer, because you're right there vouching the transfer is actually finished.</p>
+      <p>Press <b>Start Parcel Distribution</b> instead — it only needs a couple of seconds, not the full timer, because you're right there vouching the transfer is actually finished.</p>
     </div>
   </section>
 
@@ -434,6 +461,8 @@
       <tr><td>"Nothing waiting" but I just dropped files in</td><td>Give it a moment — files need to sit untouched briefly before they're treated as finished arriving. Manual Onboarding doesn't wait on this.</td></tr>
       <tr><td>Paused &mdash; safety condition, won't go away</td><td>Fix the underlying cause first (usually free space or a disconnected drive), then press Start/Resume — it re-checks everything before continuing.</td></tr>
       <tr><td>A file landed in the wrong-seeming category</td><td>Not data loss — everything is still hash-verified and accounted for. Move it within the Warehouse if you'd prefer it elsewhere; Compliance Check will find it there next time.</td></tr>
+      <tr><td>Warehouse button won't open, or Repair Folders refuses to rebuild it</td><td>By design — it's checking whether the drive is really disconnected/the folder really gone versus the ledger still remembering archived content. Confirm S:\ is connected before doing anything else.</td></tr>
+      <tr><td>A file I expected in Browse Month isn't showing up</td><td>Screenshots, screen recordings, and unidentified files are excluded from the view by default — they're still fully archived, just not shown there. Everything else should appear; if something's genuinely missing, run Compliance Check.</td></tr>
     </table>
     </div>
   </section>
